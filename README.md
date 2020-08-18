@@ -1,0 +1,2 @@
+# BotGlitch
+ Hosting bota 
