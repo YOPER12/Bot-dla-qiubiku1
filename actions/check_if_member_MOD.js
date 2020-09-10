@@ -1,5 +1,5 @@
 module.exports = {
-  name: 'Check Parameters',
+  name: 'Check If Member',
   section: 'Conditions',
 
   subtitle (data) {
@@ -7,41 +7,47 @@ module.exports = {
     return `If True: ${results[parseInt(data.iftrue)]} ~ If False: ${results[parseInt(data.iffalse)]}`
   },
 
-  fields: ['condition', 'comparison', 'value', 'iftrue', 'iftrueVal', 'iffalse', 'iffalseVal'],
+  fields: ['member', 'varName', 'info', 'varName2', 'iftrue', 'iftrueVal', 'iffalse', 'iffalseVal'],
 
   html (isEvent, data) {
-    /* eslint-disable no-useless-escape */
     return `
 <div>
-  <p>This action has been modified by DBM Mods.</p>
-  <div style="float: left; width: 45%;">
-    Condition:<br>
-    <select id="condition" class="round">
-      <option value="0" selected>Number of Parameters is...</option>
-      <option value="1">Number of Member Mentions are...</option>
-      <option value="2">Number of Channel Mentions are...</option>
-      <option value="3">Number of Role Mentions are...</option>
+  <div style="float: left; width: 35%; padding-top: 12px;">
+    Source Member:<br>
+    <select id="member" class="round" onchange="glob.memberChange(this, 'varNameContainer')">
+      ${data.members[isEvent ? 1 : 0]}
     </select>
   </div>
-  <div style="padding-left: 5%; float: left; width: 25%;">
-    Comparison:<br>
-    <select id="comparison" class="round">
-      <option value="0" selected>=</option>
-      <option value="1">\<</option>
-      <option value="2">\></option>
-      <option value="3">\>=</option>
-      <option value="4">\<=</option>
+  <div id="varNameContainer" style="display: none; float: right; width: 60%; padding-top: 12px;">
+    Variable Name:<br>
+    <input id="varName" class="round" type="text" list="variableList"><br>
+  </div>
+</div><br><br><br>
+<div style="padding-top: 20px;">
+  <div style="float: left; width: 35%;">
+    Check if Member:<br>
+    <select id="info" class="round">
+      <option value="0" selected>Is Bot?</option>
+      <option value="1">Is Bannable?</option>
+      <option value="2">Is Kickable?</option>
+      <!-- option value="3">Is Speaking?</option --!>
+      <option value="4">Is In Voice Channel?</option>
+      <option value="5">Is User Manageable?</option>
+          <option value="6">Is Bot Owner?</option>
+      <option value="7">Is Muted?</option>
+      <option value="8">Is Deafened?</option>
+      ${!isEvent && '<option value="9">Is Command Author?</option>'}
+      ${!isEvent && '<option value="10">Is Current Server Owner?</option>'}
     </select>
   </div>
-  <div style="padding-left: 5%; float: left; width: 25%;">
-    Number:<br>
-    <input id="value" class="round" type="text">
+  <div id="varNameContainer2" style="display: none; float: right; width: 60%;">
+    Variable Name:<br>
+    <input id="varName2" class="round" type="text" list="variableList2"><br>
   </div>
 </div><br><br><br>
 <div style="padding-top: 8px;">
   ${data.conditions[0]}
 </div>`
-    /* eslint-enable no-useless-escape */
   },
 
   init () {
@@ -100,51 +106,58 @@ module.exports = {
           break
       }
     }
+    glob.memberChange(document.getElementById('member'), 'varNameContainer')
     glob.onChangeTrue(document.getElementById('iftrue'))
     glob.onChangeFalse(document.getElementById('iffalse'))
   },
 
   action (cache) {
     const data = cache.actions[cache.index]
+    const type = parseInt(data.member)
+    const varName = this.evalMessage(data.varName, cache)
+    const member = this.getMember(type, varName, cache)
+    const info = parseInt(data.info)
+    const { Files } = this.getDBM()
     const { msg } = cache
+
     let result = false
-    if (msg && msg.content.length > 0) {
-      const condition = parseInt(data.condition)
-      let value = 0
-      switch (condition) {
-        case 0:
-          value = msg.content.split(/\s+/).length - 1
-          break
-        case 1:
-          value = msg.mentions.members.array().length
-          break
-        case 2:
-          value = msg.mentions.channels.array().length
-          break
-        case 3:
-          value = msg.mentions.roles.array().length
-          break
-      }
-      const comparison = parseInt(data.comparison)
-      const value2 = parseInt(data.value)
-      switch (comparison) {
-        case 0:
-          // eslint-disable-next-line eqeqeq
-          result = value == value2
-          break
-        case 1:
-          result = value < value2
-          break
-        case 2:
-          result = value > value2
-          break
-        case 3:
-          result = value >= value2
-          break
-        case 4:
-          result = value <= value2
-          break
-      }
+    switch (info) {
+      case 0:
+        result = this.dest(member.user, 'bot') || member.bot
+        break
+      case 1:
+        result = member.bannable
+        break
+      case 2:
+        result = member.kickable
+        break
+        // case 3:
+        // result = Boolean(member.speaking);
+        // break; //Do not ask me why this is not working... ~Lasse
+      case 4:
+        result = !!this.dest(member.voice, 'channel')
+        break
+      case 5:
+        result = member.manageable
+        break
+      case 6:
+        result = member.id === Files.data.settings.ownerId
+        break
+      case 7:
+        result = this.dest(member.voice, 'mute')
+        break
+      case 8:
+        result = this.dest(member.voice, 'deaf')
+        break
+      case 9:
+        result = member.user.id === msg.author.id
+        break
+      case 10:
+        result = member.user.id === msg.guild.ownerID
+        break
+      default:
+        console.log('Please check your "Check if Member" action! There is something wrong...')
+        break
     }
     this.executeResults(result, data, cache)
   },

@@ -1,5 +1,5 @@
 module.exports = {
-  name: 'Check Parameters',
+  name: 'Check If Message',
   section: 'Conditions',
 
   subtitle (data) {
@@ -7,41 +7,41 @@ module.exports = {
     return `If True: ${results[parseInt(data.iftrue)]} ~ If False: ${results[parseInt(data.iffalse)]}`
   },
 
-  fields: ['condition', 'comparison', 'value', 'iftrue', 'iftrueVal', 'iffalse', 'iffalseVal'],
+  fields: ['message', 'varName', 'info', 'varName2', 'iftrue', 'iftrueVal', 'iffalse', 'iffalseVal'],
 
   html (isEvent, data) {
-    /* eslint-disable no-useless-escape */
     return `
-<div>
-  <p>This action has been modified by DBM Mods.</p>
-  <div style="float: left; width: 45%;">
-    Condition:<br>
-    <select id="condition" class="round">
-      <option value="0" selected>Number of Parameters is...</option>
-      <option value="1">Number of Member Mentions are...</option>
-      <option value="2">Number of Channel Mentions are...</option>
-      <option value="3">Number of Role Mentions are...</option>
+<div style="float: left; width: 35%; padding-top: 15px;">
+  Source Message:<br>
+  <select id="message" class="round" onchange="glob.memberChange(this, 'varNameContainer')">
+    ${data.messages[isEvent ? 1 : 0]}
+  </select>
+</div>
+<div id="varNameContainer" style="display: none; float: right; width: 60%; padding-top: 12px;">
+  Variable Name:<br>
+  <input id="varName" class="round" type="text" list="variableList"><br>
+</div><br><br><br>
+<div style="padding-top: 20px;">
+  <div style="float: left; width: 40%;">
+    Check If Message:<br>
+    <select id="info" class="round">
+      <option value="0">Is Pinnable?</option>
+      <option value="1">Is Pinned?</option>
+      <option value="2">Is Deletable?</option>
+      <option value="3">Is Deleted?</option>
+      <option value="4">Is TTS?</option>
+      <option value="5">Is Of Discord?</option>
+      <option value="6">Includes @everyone Mention?</option>
     </select>
   </div>
-  <div style="padding-left: 5%; float: left; width: 25%;">
-    Comparison:<br>
-    <select id="comparison" class="round">
-      <option value="0" selected>=</option>
-      <option value="1">\<</option>
-      <option value="2">\></option>
-      <option value="3">\>=</option>
-      <option value="4">\<=</option>
-    </select>
-  </div>
-  <div style="padding-left: 5%; float: left; width: 25%;">
-    Number:<br>
-    <input id="value" class="round" type="text">
+  <div id="varNameContainer2" style="display: none; float: right; width: 60%;">
+    Variable Name:<br>
+    <input id="varName2" class="round" type="text" list="variableList2"><br>
   </div>
 </div><br><br><br>
 <div style="padding-top: 8px;">
   ${data.conditions[0]}
 </div>`
-    /* eslint-enable no-useless-escape */
   },
 
   init () {
@@ -100,51 +100,43 @@ module.exports = {
           break
       }
     }
+    glob.messageChange(document.getElementById('message'), 'varNameContainer')
     glob.onChangeTrue(document.getElementById('iftrue'))
     glob.onChangeFalse(document.getElementById('iffalse'))
   },
 
   action (cache) {
     const data = cache.actions[cache.index]
-    const { msg } = cache
+    const message = parseInt(data.message)
+    const varName = this.evalMessage(data.varName, cache)
+    const msg = this.getMessage(message, varName, cache)
+    const info = parseInt(data.info)
     let result = false
-    if (msg && msg.content.length > 0) {
-      const condition = parseInt(data.condition)
-      let value = 0
-      switch (condition) {
-        case 0:
-          value = msg.content.split(/\s+/).length - 1
-          break
-        case 1:
-          value = msg.mentions.members.array().length
-          break
-        case 2:
-          value = msg.mentions.channels.array().length
-          break
-        case 3:
-          value = msg.mentions.roles.array().length
-          break
-      }
-      const comparison = parseInt(data.comparison)
-      const value2 = parseInt(data.value)
-      switch (comparison) {
-        case 0:
-          // eslint-disable-next-line eqeqeq
-          result = value == value2
-          break
-        case 1:
-          result = value < value2
-          break
-        case 2:
-          result = value > value2
-          break
-        case 3:
-          result = value >= value2
-          break
-        case 4:
-          result = value <= value2
-          break
-      }
+    switch (info) {
+      case 0:
+        result = msg.pinnable
+        break
+      case 1:
+        result = msg.pinned
+        break
+      case 2:
+        result = msg.deletable
+        break
+      case 3:
+        result = msg.deleted
+        break
+      case 4:
+        result = msg.tts
+        break
+      case 5:
+        result = msg.system
+        break
+      case 6:
+        result = msg.mentions.everyone
+        break
+      default:
+        console.log('Err! Check if the action "Check If Message" is set correctly! ~~Cap')
+        break
     }
     this.executeResults(result, data, cache)
   },
